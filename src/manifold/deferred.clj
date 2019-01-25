@@ -1197,43 +1197,44 @@
         var-syms (map (fn [_] (gensym "var")) vars)]
     `(let [result# (deferred)]
        ((fn this# [result# ~@var-syms]
-          (clojure.core/loop
-            [~@(interleave vars var-syms)]
-            (let [~x-sym (try
-                           ~@body
-                           (catch Throwable e#
-                             (error! result# e#)
-                             nil))]
-              (cond
+          (when-not (realized? result#)
+            (clojure.core/loop
+              [~@(interleave vars var-syms)]
+              (let [~x-sym (try
+                             ~@body
+                             (catch Throwable e#
+                               (error! result# e#)
+                               nil))]
+                (cond
 
-                (deferred? ~x-sym)
-                (success-error-unrealized ~x-sym
-                  ~val-sym (if (instance? Recur ~val-sym)
-                             (let [~val-sym @~val-sym]
-                               (~'recur
-                                 ~@(map
-                                     (fn [n] `(nth ~val-sym ~n))
-                                     (range (count vars)))))
-                             (success! result# ~val-sym))
+                  (deferred? ~x-sym)
+                  (success-error-unrealized ~x-sym
+                    ~val-sym (if (instance? Recur ~val-sym)
+                               (let [~val-sym @~val-sym]
+                                 (~'recur
+                                   ~@(map
+                                       (fn [n] `(nth ~val-sym ~n))
+                                       (range (count vars)))))
+                               (success! result# ~val-sym))
 
-                  err# (error! result# err#)
+                    err# (error! result# err#)
 
-                  (on-realized (chain' ~x-sym)
-                    (fn [x#]
-                      (if (instance? Recur x#)
-                        (apply this# result# @x#)
-                        (success! result# x#)))
-                    (fn [err#]
-                      (error! result# err#))))
+                    (on-realized (chain' ~x-sym)
+                      (fn [x#]
+                        (if (instance? Recur x#)
+                          (apply this# result# @x#)
+                          (success! result# x#)))
+                      (fn [err#]
+                        (error! result# err#))))
 
-                (instance? Recur ~x-sym)
-                (~'recur
-                  ~@(map
-                      (fn [n] `(nth @~x-sym ~n))
-                      (range (count vars))))
+                  (instance? Recur ~x-sym)
+                  (~'recur
+                    ~@(map
+                        (fn [n] `(nth @~x-sym ~n))
+                        (range (count vars))))
 
-                :else
-                (success! result# ~x-sym)))))
+                  :else
+                  (success! result# ~x-sym))))))
          result#
          ~@vals)
        result#)))
