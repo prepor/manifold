@@ -1197,9 +1197,9 @@
         var-syms (map (fn [_] (gensym "var")) vars)]
     `(let [result# (deferred)]
        ((fn this# [result# ~@var-syms]
-          (when-not (realized? result#)
-            (clojure.core/loop
-              [~@(interleave vars var-syms)]
+          (clojure.core/loop
+            [~@(interleave vars var-syms)]
+            (when-not (realized? result#)
               (let [~x-sym (try
                              ~@body
                              (catch Throwable e#
